@@ -1,0 +1,21 @@
+{
+  "name": "skill-renovate-debugging",
+  "owner": {
+    "name": "Dominik Schmidt"
+  },
+  "metadata": {
+    "description": "Debug and test Renovate bot configuration locally using Docker",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "skill-renovate-debugging",
+      "description": "Debug and test Renovate bot configuration locally using Docker",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/renovate-debugging"
+      ]
+    }
+  ]
+}

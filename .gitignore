@@ -1,0 +1,6 @@
+# Skill creator workspace (eval results, benchmarks, iterations)
+skills/*-workspace/
+
+# Packaged skill archives
+*.skill
+
