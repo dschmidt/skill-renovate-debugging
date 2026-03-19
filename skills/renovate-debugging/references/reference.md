@@ -49,12 +49,15 @@ grep -E "(Invalid|config-validation|WARN.*config)" /tmp/renovate-output.log
 
 ### Manager detection and dependency counts
 ```
-grep -E "Found .* package file" /tmp/renovate-output.log
+awk '/^DEBUG: packageFiles with updates/{found=1; next} found && /^[A-Z]/{exit} found{sub(/^       "config": /, ""); print}' /tmp/renovate-output.log \
+  | jq -r 'to_entries[] | "\(.key): \(.value | length) files, \(.value | [.[].deps | length] | add) deps, \(.value | [.[].deps[] | select(.updates | length > 0)] | length) updates"'
 ```
 
-### Proposed updates (branches Renovate would create)
+### Proposed updates (dependency, current version, new version, branch)
 ```
-grep -oE '"branchName": "[^"]+"' /tmp/renovate-output.log | sort -u
+awk '/^DEBUG: packageFiles with updates/{found=1; next} found && /^[A-Z]/{exit} found{sub(/^       "config": /, ""); print}' /tmp/renovate-output.log \
+  | jq -r 'to_entries[] | .value[] | .deps[] | select(.updates | length > 0) | . as $dep | .updates[] | [$dep.depName, ($dep.currentVersion // $dep.currentValue), (.newVersion // .newValue), .branchName] | @tsv' \
+  | sort -u
 ```
 
 ### Warnings and errors

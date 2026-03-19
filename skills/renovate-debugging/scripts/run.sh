@@ -98,6 +98,9 @@ echo "  RENOVATE TEST SUMMARY"
 echo "============================================"
 echo ""
 
+# Extract the packageFiles JSON once for reuse
+PKGFILES_JSON=$(awk '/^DEBUG: packageFiles with updates/{found=1; next} found && /^[A-Z]/{exit} found{sub(/^       "config": /, ""); print}' "$LOGFILE")
+
 # Config validation
 echo "--- Config Validation ---"
 if grep -qiE "(Invalid|config-validation)" "$LOGFILE"; then
@@ -109,13 +112,27 @@ echo ""
 
 # Managers detected
 echo "--- Managers & Dependencies ---"
-grep -E "Found .* package file" "$LOGFILE" 2>/dev/null | head -30 || true
+MANAGERS=$(echo "$PKGFILES_JSON" | jq -r 'to_entries[] | "\(.key)\t\(.value | length)\t\(.value | [.[].deps | length] | add)\t\(.value | [.[].deps[] | select(.updates | length > 0)] | length)"' 2>/dev/null)
+if [ -n "$MANAGERS" ]; then
+  printf "%-20s %-12s %-12s %s\n" "MANAGER" "FILES" "DEPS" "UPDATES"
+  echo "$MANAGERS" | while IFS=$'\t' read -r mgr files deps updates; do
+    printf "%-20s %-12s %-12s %s\n" "$mgr" "$files" "$deps" "$updates"
+  done
+else
+  echo "No managers detected."
+fi
 echo ""
 
-# Proposed updates — show unique branches Renovate would create
-echo "--- Proposed Updates (branches) ---"
-grep -oE '"branchName": "[^"]+"' "$LOGFILE" 2>/dev/null | sort -u | head -30 || true
-if ! grep -qE '"branchName"' "$LOGFILE" 2>/dev/null; then
+# Proposed updates — extract dep name, current version, new version, branch
+echo "--- Proposed Updates ---"
+UPDATES=$(echo "$PKGFILES_JSON" | jq -r 'to_entries[] | .value[] | .deps[] | select(.updates | length > 0) | . as $dep | .updates[] | [$dep.depName, ($dep.currentVersion // $dep.currentValue), (.newVersion // .newValue), .branchName] | @tsv' 2>/dev/null \
+  | sort -u)
+if [ -n "$UPDATES" ]; then
+  printf "%-40s %-15s %-15s %s\n" "DEPENDENCY" "CURRENT" "NEW" "BRANCH"
+  echo "$UPDATES" | while IFS=$'\t' read -r dep current new branch; do
+    printf "%-40s %-15s %-15s %s\n" "$dep" "$current" "$new" "$branch"
+  done
+else
   echo "No updates proposed."
 fi
 echo ""
